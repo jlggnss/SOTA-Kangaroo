@@ -1,3 +1,5 @@
+// RCGpuCore.cu
+// 
 // This file is a part of RCKangaroo software
 // (c) 2024, RetiredCoder (RC)
 // License: GPLv3, see "LICENSE.TXT" file
@@ -20,7 +22,7 @@ __device__ __constant__ u64 jmp2_table[8 * JMP_CNT];
 #define SAVE_VAL_256(ptr, src, group) { *((int4*)&(ptr)[BLOCK_SIZE * 4 * BLOCK_CNT * (group)]) = *((int4*)&(src)[0]); *((int4*)&(ptr)[2 * BLOCK_SIZE + BLOCK_SIZE * 4 * BLOCK_CNT * (group)]) = *((int4*)&(src)[2]); }
 
 
-extern __shared__ u64 LDS[]; 
+extern __shared__ u64 LDS[];
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -39,21 +41,21 @@ __global__ void KernelA(const TKparams Kparams)
 	//list of last visited points for KernelC
 	u64* x_last0 = Kparams.LastPnts + 2 * THREAD_X + 4 * BLOCK_SIZE * BLOCK_X;
 	u64* y_last0 = x_last0 + 4 * PNT_GROUP_CNT * BLOCK_CNT * BLOCK_SIZE;
-      
+
 	u64* jmp1_table = LDS; //32KB
 	u16* lds_jlist = (u16*)&LDS[8 * JMP_CNT]; //4KB, must be aligned 16bytes
 
 	int i = THREAD_X;
 	while (i < JMP_CNT)
-    {	
+	{
 		*(int4*)&jmp1_table[8 * i + 0] = *(int4*)&Kparams.Jumps1[12 * i + 0];
 		*(int4*)&jmp1_table[8 * i + 2] = *(int4*)&Kparams.Jumps1[12 * i + 2];
 		*(int4*)&jmp1_table[8 * i + 4] = *(int4*)&Kparams.Jumps1[12 * i + 4];
 		*(int4*)&jmp1_table[8 * i + 6] = *(int4*)&Kparams.Jumps1[12 * i + 6];
 		i += BLOCK_SIZE;
-    }
+	}
 
-    __syncthreads(); 
+	__syncthreads();
 
 	__align__(16) u64 x[4], y[4], tmp[4], tmp2[4];
 	u64 dp_mask64 = ~((1ull << (64 - Kparams.DP)) - 1);
@@ -62,7 +64,7 @@ __global__ void KernelA(const TKparams Kparams)
 	//copy kangs from global to L2
 	u32 kang_ind = PNT_GROUP_CNT * (THREAD_X + BLOCK_X * BLOCK_SIZE);
 	for (u32 group = 0; group < PNT_GROUP_CNT; group++)
-	{	
+	{
 		tmp[0] = Kparams.Kangs[(kang_ind + group) * 12 + 0];
 		tmp[1] = Kparams.Kangs[(kang_ind + group) * 12 + 1];
 		tmp[2] = Kparams.Kangs[(kang_ind + group) * 12 + 2];
@@ -77,13 +79,13 @@ __global__ void KernelA(const TKparams Kparams)
 
 	u32 L1S2 = Kparams.L1S2[BLOCK_X * BLOCK_SIZE + THREAD_X];
 
-    for (int step_ind = 0; step_ind < STEP_CNT; step_ind++)
-    {
-        __align__(16) u64 inverse[5];
+	for (int step_ind = 0; step_ind < STEP_CNT; step_ind++)
+	{
+		__align__(16) u64 inverse[5];
 		u64* jmp_table;
 		__align__(16) u64 jmp_x[4];
 		__align__(16) u64 jmp_y[4];
-		
+
 		//first group
 		LOAD_VAL_256(x, L2x, 0);
 		jmp_ind = x[0] % JMP_CNT;
@@ -105,14 +107,14 @@ __global__ void KernelA(const TKparams Kparams)
 
 		InvModP((u32*)inverse);
 
-        for (int group = PNT_GROUP_CNT - 1; group >= 0; group--)
-        {
-            __align__(16) u64 x0[4];
-            __align__(16) u64 y0[4];
-            __align__(16) u64 dxs[4];
+		for (int group = PNT_GROUP_CNT - 1; group >= 0; group--)
+		{
+			__align__(16) u64 x0[4];
+			__align__(16) u64 y0[4];
+			__align__(16) u64 dxs[4];
 
 			LOAD_VAL_256(x0, L2x, group);
-            LOAD_VAL_256(y0, L2y, group);
+			LOAD_VAL_256(y0, L2y, group);
 			jmp_ind = x0[0] % JMP_CNT;
 			jmp_table = ((L1S2 >> group) & 1) ? jmp2_table : jmp1_table;
 			Copy_int4_x2(jmp_x, jmp_table + 8 * jmp_ind);
@@ -123,13 +125,13 @@ __global__ void KernelA(const TKparams Kparams)
 				jmp_ind |= INV_FLAG;
 				NegModP(jmp_y);
 			}
-            if (group)
-            {
+			if (group)
+			{
 				LOAD_VAL_256(tmp, L2s, group - 1);
 				SubModP(tmp2, x0, jmp_x);
 				MulModP(dxs, tmp, inverse);
 				MulModP(inverse, inverse, tmp2);
-            }
+			}
 			else
 				Copy_u64_x4(dxs, inverse);
 
@@ -157,7 +159,7 @@ __global__ void KernelA(const TKparams Kparams)
 				L1S2 &= ~(1u << group);
 				jmp_ind |= JMP2_FLAG;
 			}
-			
+
 			if ((x[3] & dp_mask64) == 0)
 			{
 				u32 kang_ind = (THREAD_X + BLOCK_X * BLOCK_SIZE) * PNT_GROUP_CNT + group;
@@ -180,9 +182,9 @@ __global__ void KernelA(const TKparams Kparams)
 				SAVE_VAL_256(x_last, x, group);
 				SAVE_VAL_256(y_last, y, group);
 			}
-        }
+		}
 		jlist += PNT_GROUP_CNT * BLOCK_SIZE / 8;
-    } 
+	}
 
 	Kparams.L1S2[BLOCK_X * BLOCK_SIZE + THREAD_X] = L1S2;
 	//copy kangs from L2 to global
@@ -200,7 +202,7 @@ __global__ void KernelA(const TKparams Kparams)
 		Kparams.Kangs[(kang_ind + group) * 12 + 6] = tmp[2];
 		Kparams.Kangs[(kang_ind + group) * 12 + 7] = tmp[3];
 	}
-} 
+}
 
 #else
 
@@ -321,7 +323,7 @@ __global__ void KernelA(const TKparams Kparams)
 			jmp_table = ((L1S2 >> group) & 1) ? jmp2_table : jmp1_table;
 			if (cached)
 			{
-				Copy_u64_x4(jmp_x, jmpx_cached); 
+				Copy_u64_x4(jmp_x, jmpx_cached);
 			}
 			else
 			{
@@ -356,7 +358,7 @@ __global__ void KernelA(const TKparams Kparams)
 				else //no s(-1), need to calc it
 				{
 					LOAD_VAL_256_m(t_cache, Ls, (group + g_inc + g_inc) / 2);
-					cached = true;				
+					cached = true;
 					LOAD_VAL_256_m(x0_cache, Lx, group + g_inc);
 					u32 jmp_tmp = x0_cache[0] % JMP_CNT;
 					__align__(16) u64 dx2[4];
@@ -418,7 +420,7 @@ __global__ void KernelA(const TKparams Kparams)
 				SAVE_VAL_256(x_last, x, group);
 				SAVE_VAL_256(y_last, y, group);
 			}
-		
+
 			//preps to calc next inv
 			jmp_ind = x[0] % JMP_CNT;
 			jmp_table = ((L1S2 >> group) & 1) ? jmp2_table : jmp1_table;
@@ -533,7 +535,7 @@ __device__ __forceinline__ bool ProcessJumpDistance(u32 step_ind, u32 d_cur, u64
 	*cur_ind = (iter + 1) % MD_LEN;
 
 	if (found_ind < 0)
-	{		
+	{
 		if (d_cur & DP_FLAG)
 			BuildDP(Kparams, kang_ind, d);
 		return false;
@@ -597,9 +599,9 @@ __global__ void KernelB(const TKparams Kparams)
 	u64 RegsA[MD_LEN], RegsB[MD_LEN];
 
 	//we process two kangs at once
-	for (u32 gr_ind2 = 0; gr_ind2 < PNT_GROUP_CNT/2; gr_ind2++)
-	{	
-		#pragma unroll
+	for (u32 gr_ind2 = 0; gr_ind2 < PNT_GROUP_CNT / 2; gr_ind2++)
+	{
+#pragma unroll
 		for (int i = 0; i < MD_LEN; i++)
 		{
 			RegsA[i] = Kparams.LoopTable[MD_LEN * BLOCK_SIZE * PNT_GROUP_CNT * BLOCK_X + 2 * MD_LEN * BLOCK_SIZE * gr_ind2 + i * BLOCK_SIZE + BLOCK_X];
@@ -653,7 +655,7 @@ __global__ void KernelB(const TKparams Kparams)
 		Kparams.Kangs[(kang_ind + 1) * 12 + 10] = dB[2];
 
 		//store so cur_ind is 0 at next loading
-		#pragma unroll
+#pragma unroll
 		for (int i = 0; i < MD_LEN; i++)
 		{
 			int ind = (i + MD_LEN - cur_indA) % MD_LEN;
@@ -832,13 +834,13 @@ __global__ void KernelGen(const TKparams Kparams)
 		d[0] = Kparams.Kangs[kang_ind * 12 + 8];
 		d[1] = Kparams.Kangs[kang_ind * 12 + 9];
 		d[2] = Kparams.Kangs[kang_ind * 12 + 10];
-		
+
 		tx[0] = GX_0; tx[1] = GX_1; tx[2] = GX_2; tx[3] = GX_3;
 		ty[0] = GY_0; ty[1] = GY_1; ty[2] = GY_2; ty[3] = GY_3;
 
 		bool first = true;
 		int n = 2;
-		while ((n >= 0) && !d[n]) 
+		while ((n >= 0) && !d[n])
 			n--;
 		if (n < 0)
 			continue; //error
@@ -889,9 +891,9 @@ __global__ void KernelGen(const TKparams Kparams)
 
 void CallGpuKernelABC(TKparams Kparams)
 {
-	KernelA <<< Kparams.BlockCnt, Kparams.BlockSize, Kparams.KernelA_LDS_Size >>> (Kparams);
-	KernelB <<< Kparams.BlockCnt, Kparams.BlockSize, Kparams.KernelB_LDS_Size >>> (Kparams);
-	KernelC <<< Kparams.BlockCnt, Kparams.BlockSize, Kparams.KernelC_LDS_Size >>> (Kparams);
+	KernelA << < Kparams.BlockCnt, Kparams.BlockSize, Kparams.KernelA_LDS_Size >> > (Kparams);
+	KernelB << < Kparams.BlockCnt, Kparams.BlockSize, Kparams.KernelB_LDS_Size >> > (Kparams);
+	KernelC << < Kparams.BlockCnt, Kparams.BlockSize, Kparams.KernelC_LDS_Size >> > (Kparams);
 }
 
 void CallGpuKernelGen(TKparams Kparams)
