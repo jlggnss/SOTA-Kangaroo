@@ -1,3 +1,5 @@
+// GpuKang.cpp
+// 
 // This file is a part of RCKangaroo software
 // (c) 2024, RetiredCoder (RC)
 // License: GPLv3, see "LICENSE.TXT" file
@@ -21,7 +23,7 @@ int RCGpuKang::CalcKangCnt()
 	Kparams.BlockCnt = mpCnt;
 	Kparams.BlockSize = IsOldGpu ? 512 : 256;
 	Kparams.GroupCnt = IsOldGpu ? 64 : 24;
-	return Kparams.BlockSize* Kparams.GroupCnt* Kparams.BlockCnt;
+	return Kparams.BlockSize * Kparams.GroupCnt * Kparams.BlockCnt;
 }
 
 //executes in main thread
@@ -56,7 +58,7 @@ bool RCGpuKang::Prepare(EcPoint _PntToSolve, int _Range, int _DP, EcJMP* _EcJump
 	Kparams.KernelC_LDS_Size = 96 * JMP_CNT;
 	Kparams.IsGenMode = gGenMode;
 
-//allocate gpu mem
+	//allocate gpu mem
 	u64 size;
 	if (!IsOldGpu)
 	{
@@ -74,12 +76,12 @@ bool RCGpuKang::Prepare(EcPoint _PntToSolve, int _Range, int _DP, EcJMP* _EcJump
 			size = persistingL2CacheMaxSize;
 		err = cudaDeviceSetLimit(cudaLimitPersistingL2CacheSize, size); // set max allowed size for L2
 		//persisting for L2
-		cudaStreamAttrValue stream_attribute;                                                   
+		cudaStreamAttrValue stream_attribute;
 		stream_attribute.accessPolicyWindow.base_ptr = Kparams.L2;
-		stream_attribute.accessPolicyWindow.num_bytes = size;										
-		stream_attribute.accessPolicyWindow.hitRatio = 1.0;                                     
-		stream_attribute.accessPolicyWindow.hitProp = cudaAccessPropertyPersisting;             
-		stream_attribute.accessPolicyWindow.missProp = cudaAccessPropertyStreaming;  	
+		stream_attribute.accessPolicyWindow.num_bytes = size;
+		stream_attribute.accessPolicyWindow.hitRatio = 1.0;
+		stream_attribute.accessPolicyWindow.hitProp = cudaAccessPropertyPersisting;
+		stream_attribute.accessPolicyWindow.missProp = cudaAccessPropertyStreaming;
 		err = cudaStreamSetAttribute(NULL, cudaStreamAttributeAccessPolicyWindow, &stream_attribute);
 		if (err != cudaSuccess)
 		{
@@ -193,7 +195,7 @@ bool RCGpuKang::Prepare(EcPoint _PntToSolve, int _Range, int _DP, EcJMP* _EcJump
 
 	DPs_out = (u32*)malloc(MAX_DP_CNT * GPU_DP_SIZE);
 
-//jmp1
+	//jmp1
 	u64* buf = (u64*)malloc(JMP_CNT * 96);
 	for (int i = 0; i < JMP_CNT; i++)
 	{
@@ -208,7 +210,7 @@ bool RCGpuKang::Prepare(EcPoint _PntToSolve, int _Range, int _DP, EcJMP* _EcJump
 		return false;
 	}
 	free(buf);
-//jmp2
+	//jmp2
 	buf = (u64*)malloc(JMP_CNT * 96);
 	u64* jmp2_table = (u64*)malloc(JMP_CNT * 64);
 	for (int i = 0; i < JMP_CNT; i++)
@@ -235,7 +237,7 @@ bool RCGpuKang::Prepare(EcPoint _PntToSolve, int _Range, int _DP, EcJMP* _EcJump
 		return false;
 	}
 	free(jmp2_table);
-//jmp3
+	//jmp3
 	buf = (u64*)malloc(JMP_CNT * 96);
 	for (int i = 0; i < JMP_CNT; i++)
 	{
@@ -318,40 +320,40 @@ bool RCGpuKang::Start()
 
 	RndPnts = (TPointPriv*)malloc(KangCnt * 96);
 	GenerateRndDistances();
-/* 
-	//we can calc start points on CPU
-	for (int i = 0; i < KangCnt; i++)
-	{
-		EcInt d;
-		memcpy(d.data, RndPnts[i].priv, 24);
-		d.data[3] = 0;
-		d.data[4] = 0;
-		EcPoint p = ec.MultiplyG(d);
-		memcpy(RndPnts[i].x, p.x.data, 32);
-		memcpy(RndPnts[i].y, p.y.data, 32);
-	}
-	for (int i = KangCnt / 3; i < 2 * KangCnt / 3; i++)
-	{
-		EcPoint p;
-		p.LoadFromBuffer64((u8*)RndPnts[i].x);
-		p = ec.AddPoints(p, PntA);
-		p.SaveToBuffer64((u8*)RndPnts[i].x);
-	}
-	for (int i = 2 * KangCnt / 3; i < KangCnt; i++)
-	{
-		EcPoint p;
-		p.LoadFromBuffer64((u8*)RndPnts[i].x);
-		p = ec.AddPoints(p, PntB);
-		p.SaveToBuffer64((u8*)RndPnts[i].x);
-	}
-	//copy to gpu
-	err = cudaMemcpy(Kparams.Kangs, RndPnts, KangCnt * 96, cudaMemcpyHostToDevice);
-	if (err != cudaSuccess)
-	{
-		printf("GPU %d, cudaMemcpy failed: %s\n", CudaIndex, cudaGetErrorString(err));
-		return false;
-	}
-/**/
+	/*
+		//we can calc start points on CPU
+		for (int i = 0; i < KangCnt; i++)
+		{
+			EcInt d;
+			memcpy(d.data, RndPnts[i].priv, 24);
+			d.data[3] = 0;
+			d.data[4] = 0;
+			EcPoint p = ec.MultiplyG(d);
+			memcpy(RndPnts[i].x, p.x.data, 32);
+			memcpy(RndPnts[i].y, p.y.data, 32);
+		}
+		for (int i = KangCnt / 3; i < 2 * KangCnt / 3; i++)
+		{
+			EcPoint p;
+			p.LoadFromBuffer64((u8*)RndPnts[i].x);
+			p = ec.AddPoints(p, PntA);
+			p.SaveToBuffer64((u8*)RndPnts[i].x);
+		}
+		for (int i = 2 * KangCnt / 3; i < KangCnt; i++)
+		{
+			EcPoint p;
+			p.LoadFromBuffer64((u8*)RndPnts[i].x);
+			p = ec.AddPoints(p, PntB);
+			p.SaveToBuffer64((u8*)RndPnts[i].x);
+		}
+		//copy to gpu
+		err = cudaMemcpy(Kparams.Kangs, RndPnts, KangCnt * 96, cudaMemcpyHostToDevice);
+		if (err != cudaSuccess)
+		{
+			printf("GPU %d, cudaMemcpy failed: %s\n", CudaIndex, cudaGetErrorString(err));
+			return false;
+		}
+	/**/
 	//but it's faster to calc then on GPU
 	u8 buf_PntA[64], buf_PntB[64];
 	PntA.SaveToBuffer64(buf_PntA);
@@ -437,7 +439,7 @@ void RCGpuKang::Execute()
 #ifdef DEBUG_MODE
 	u64 iter = 1;
 #endif
-	cudaError_t err;	
+	cudaError_t err;
 	while (!StopFlag)
 	{
 		u64 t1 = GetTickCount64();
@@ -453,7 +455,7 @@ void RCGpuKang::Execute()
 			gTotalErrors++;
 			break;
 		}
-		
+
 		if (cnt >= MAX_DP_CNT)
 		{
 			cnt = MAX_DP_CNT;
@@ -507,6 +509,96 @@ void RCGpuKang::Execute()
 
 	Release();
 }
+
+////Show MAX_DP_CNT and CNT in Print Output for Debugging
+//void RCGpuKang::Execute()
+//{
+//	cudaSetDevice(CudaIndex);
+//
+//	if (!Start())
+//	{
+//		gTotalErrors++;
+//		return;
+//	}
+//#ifdef DEBUG_MODE
+//	u64 iter = 1;
+//#endif
+//	cudaError_t err;
+//	while (!StopFlag)
+//	{
+//		u64 t1 = GetTickCount64();
+//		cudaMemset(Kparams.DPs_out, 0, 4);
+//		cudaMemset(Kparams.DPTable, 0, KangCnt * sizeof(u32));
+//		cudaMemset(Kparams.LoopedKangs, 0, 8);
+//		CallGpuKernelABC(Kparams);
+//		int cnt;
+//		err = cudaMemcpy(&cnt, Kparams.DPs_out, 4, cudaMemcpyDeviceToHost);
+//		if (err != cudaSuccess)
+//		{
+//			printf("GPU %d, CallGpuKernel failed: %s\r\n", CudaIndex, cudaGetErrorString(err));
+//			gTotalErrors++;
+//			break;
+//		}
+//
+//		if (cnt >= MAX_DP_CNT)
+//		{
+//			cnt = MAX_DP_CNT;
+//			printf("GPU %d, gpu DP buffer overflow, some points lost, increase DP value! cnt: %d, MAX_DP_CNT: %d\r\n", CudaIndex, cnt, MAX_DP_CNT);
+//		}
+//		else
+//		{
+//			printf("GPU %d, cnt: %d, MAX_DP_CNT: %d\r\n", CudaIndex, cnt, MAX_DP_CNT);
+//		}
+//
+//		u64 pnt_cnt = (u64)KangCnt * STEP_CNT;
+//
+//		if (cnt)
+//		{
+//			err = cudaMemcpy(DPs_out, Kparams.DPs_out + 4, cnt * GPU_DP_SIZE, cudaMemcpyDeviceToHost);
+//			if (err != cudaSuccess)
+//			{
+//				gTotalErrors++;
+//				break;
+//			}
+//			AddPointsToList(DPs_out, cnt, (u64)KangCnt * STEP_CNT);
+//		}
+//
+//		//dbg
+//		cudaMemcpy(dbg, Kparams.dbg_buf, 1024, cudaMemcpyDeviceToHost);
+//
+//		u32 lcnt;
+//		cudaMemcpy(&lcnt, Kparams.LoopedKangs, 4, cudaMemcpyDeviceToHost);
+//		//printf("GPU %d, Looped: %d\r\n", CudaIndex, lcnt);
+//
+//		u64 t2 = GetTickCount64();
+//		u64 tm = t2 - t1;
+//		if (!tm)
+//			tm = 1;
+//		int cur_speed = (int)(pnt_cnt / (tm * 1000));
+//		//printf("GPU %d kernel time %d ms, speed %d MH\r\n", CudaIndex, (int)tm, cur_speed);
+//
+//		SpeedStats[cur_stats_ind] = cur_speed;
+//		cur_stats_ind = (cur_stats_ind + 1) % STATS_WND_SIZE;
+//
+//#ifdef DEBUG_MODE
+//		if ((iter % 300) == 0)
+//		{
+//			int corr_cnt = Dbg_CheckKangs();
+//			if (corr_cnt)
+//			{
+//				printf("DBG: GPU %d, KANGS CORRUPTED: %d\r\n", CudaIndex, corr_cnt);
+//				gTotalErrors++;
+//			}
+//			else
+//				printf("DBG: GPU %d, ALL KANGS OK!\r\n", CudaIndex);
+//		}
+//		iter++;
+//#endif
+//	}
+//
+//	Release();
+//}
+
 
 int RCGpuKang::GetStatsSpeed()
 {
