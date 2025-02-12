@@ -1,3 +1,5 @@
+//	defs.h
+// 
 // This file is a part of RCKangaroo software
 // (c) 2024, RetiredCoder (RC)
 // License: GPLv3, see "LICENSE.TXT" file
@@ -28,21 +30,21 @@ typedef char i8;
 
 //use different options for cards older than RTX 40xx
 #ifdef __CUDA_ARCH__
-	#if __CUDA_ARCH__ < 890
-		#define OLD_GPU
-	#endif
-	#ifdef OLD_GPU
-		#define BLOCK_SIZE			512
-		//can be 8, 16, 24, 32, 40, 48, 56, 64
-		#define PNT_GROUP_CNT		64	
-	#else
-		#define BLOCK_SIZE			256
-		//can be 8, 16, 24, 32
-		#define PNT_GROUP_CNT		24
-	#endif
+#if __CUDA_ARCH__ < 890
+#define OLD_GPU
+#endif
+#ifdef OLD_GPU
+#define BLOCK_SIZE			512
+//can be 8, 16, 24, 32, 40, 48, 56, 64
+#define PNT_GROUP_CNT		64	
+#else
+#define BLOCK_SIZE			256
+//can be 8, 16, 24, 32
+#define PNT_GROUP_CNT		24
+#endif
 #else //CPU, fake values
-	#define BLOCK_SIZE			512
-	#define PNT_GROUP_CNT		64
+#define BLOCK_SIZE			512
+#define PNT_GROUP_CNT		64
 #endif
 
 // kang type
@@ -92,6 +94,6 @@ struct TKparams
 
 	u32 KernelA_LDS_Size;
 	u32 KernelB_LDS_Size;
-	u32 KernelC_LDS_Size;	
+	u32 KernelC_LDS_Size;
 };
 
