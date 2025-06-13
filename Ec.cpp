@@ -1,5 +1,3 @@
-// Ec.cpp
-// 
 // This file is a part of RCKangaroo software
 // (c) 2024, RetiredCoder (RC)
 // License: GPLv3, see "LICENSE.TXT" file
@@ -13,7 +11,6 @@
 
 // https://en.bitcoin.it/wiki/Secp256k1
 EcInt g_P; //FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFE FFFFFC2F
-EcInt g_N; //FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFE BAAEDCE6 AF48A03B BFD25E8C D0364141
 EcPoint g_G; //Generator point
 
 #define P_REV	0x00000001000003D1
@@ -84,7 +81,7 @@ bool EcPoint::SetHexStr(const char* str)
 		}
 		res.y = Ec::CalcY(res.x, type == 2);
 		if (!Ec::IsValidPoint(res))
-			return false;
+			return false;		
 		*this = res;
 		return true;
 	}
@@ -114,7 +111,6 @@ void InitEc()
 	g_P.SetHexStr("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F"); //Fp
 	g_G.x.SetHexStr("79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798"); //G.x
 	g_G.y.SetHexStr("483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8"); //G.y
-	g_N.SetHexStr("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141"); //order of G
 #ifdef DEBUG_MODE
 	GTable = (u8*)malloc(16 * 256 * 256 * 64);
 	EcPoint pnt = g_G;
@@ -210,11 +206,11 @@ EcPoint Ec::MultiplyG(EcInt& k)
 		n--;
 	if (n < 0)
 		return res; //error
-	int index;
+	int index;                     
 	_BitScanReverse64((DWORD*)&index, k.data[n]);
 	for (int i = 0; i <= 64 * n + index; i++)
 	{
-		u8 v = (k.data[i / 64] >> (i % 64)) & 1;
+		u8 v = (k.data[i / 64] >> (i % 64)) & 1;	
 		if (v)
 		{
 			if (first)
@@ -460,7 +456,7 @@ bool EcInt::IsZero()
 void EcInt::AddModP(EcInt& val)
 {
 	Add(val);
-	if (!IsLessThanU(g_P))
+	if (!IsLessThanU(g_P)) 
 		Sub(g_P);
 }
 
@@ -475,13 +471,6 @@ void EcInt::NegModP()
 {
 	Neg();
 	Add(g_P);
-}
-
-//assume value < N
-void EcInt::NegModN()
-{
-	Neg();
-	Add(g_N);
 }
 
 void EcInt::ShiftRight(int nbits)
@@ -521,7 +510,7 @@ void EcInt::ShiftLeft(int nbits)
 }
 
 void EcInt::MulModP(EcInt& val)
-{
+{	
 	u64 buff[8], tmp[5], h;
 	//calc 512 bits
 	Mul256_by_64(val.data, data[0], buff);
@@ -541,6 +530,8 @@ void EcInt::MulModP(EcInt& val)
 	c = _addcarry_u64(c, buff[1], h, data + 1);
 	c = _addcarry_u64(c, 0, buff[2], data + 2);
 	data[4] = _addcarry_u64(c, buff[3], 0, data + 3);
+	while (data[4])
+		Sub(g_P);
 }
 
 void EcInt::Mul_u64(EcInt& val, u64 multiplier)
@@ -561,7 +552,7 @@ void EcInt::Mul_i64(EcInt& val, i64 multiplier)
 }
 
 #define APPLY_DIV_SHIFT() kbnt -= index; val >>= index; matrix[0] <<= index; matrix[1] <<= index; 
-
+	
 // https://tches.iacr.org/index.php/TCHES/article/download/8298/7648/4494
 //a bit tricky
 void DIV_62(i64& kbnt, i64 modp, i64 val, i64* matrix)
@@ -599,7 +590,7 @@ void EcInt::InvModP()
 	EcInt modp, val;
 	i64 kbnt = -1;
 	matrix[1] = matrix[2] = 0;
-	matrix[0] = matrix[3] = 1;
+	matrix[0] = matrix[3] = 1;	
 	DIV_62(kbnt, g_P.data[0], data[0], matrix);
 	modp.Mul_i64(g_P, matrix[0]);
 	tmp.Mul_i64(*this, matrix[1]);
@@ -619,7 +610,7 @@ void EcInt::InvModP()
 	if (matrix[3] >= 0)
 		a.Set(matrix[3]);
 	else
-	{
+	{ 
 		a.Set(-matrix[3]);
 		a.Neg();
 	}
@@ -629,11 +620,11 @@ void EcInt::InvModP()
 	Mul320_by_64(g_P.data, (a.data[0] * 0xD838091DD2253531) & 0x3FFFFFFFFFFFFFFF, tmp.data);
 	a.Add(tmp);
 	a.ShiftRight(62);
-
+	
 	while (val.data[0] || val.data[1] || val.data[2] || val.data[3])
 	{
 		matrix[1] = matrix[2] = 0;
-		matrix[0] = matrix[3] = 1;
+		matrix[0] = matrix[3] = 1;	
 		DIV_62(kbnt, modp.data[0], val.data[0], matrix);
 		tmp.Mul_i64(modp, matrix[0]);
 		tmp2.Mul_i64(val, matrix[1]);
@@ -652,7 +643,7 @@ void EcInt::InvModP()
 		a.Add(tmp2);
 		Mul320_by_64(g_P.data, (a.data[0] * 0xD838091DD2253531) & 0x3FFFFFFFFFFFFFFF, tmp2.data);
 		a.Add(tmp2);
-		a.ShiftRight(62);
+		a.ShiftRight(62);	
 		Mul320_by_64(g_P.data, (tmp.data[0] * 0xD838091DD2253531) & 0x3FFFFFFFFFFFFFFF, tmp2.data);
 		result = tmp;
 		result.Add(tmp2);
@@ -662,10 +653,10 @@ void EcInt::InvModP()
 	if (modp.data[4] >> 63)
 	{
 		Neg();
-		modp.Neg();
+		modp.Neg();	
 	}
 
-	if (modp.data[0] == 1)
+	if (modp.data[0] == 1) 
 	{
 		if (data[4] >> 63)
 			Add(g_P);
@@ -743,3 +734,7 @@ void EcInt::RndMax(EcInt& max)
 	while (!IsLessThanU(max)) // :)
 		RndBits(bits);
 }
+
+
+
+
