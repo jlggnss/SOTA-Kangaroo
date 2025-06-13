@@ -1,5 +1,3 @@
-// RCGpuUtils.h
-// 
 // This file is a part of RCKangaroo software
 // (c) 2024, RetiredCoder (RC)
 // License: GPLv3, see "LICENSE.TXT" file
@@ -92,18 +90,18 @@ __device__ __forceinline__ void NegModP(u64* res)
 __device__ __forceinline__ void SubModP(u64* res, u64* val1, u64* val2)
 {
 	sub_cc_64(res[0], val1[0], val2[0]);
-	subc_cc_64(res[1], val1[1], val2[1]);
-	subc_cc_64(res[2], val1[2], val2[2]);
-	subc_cc_64(res[3], val1[3], val2[3]);
-	u32 carry;
-	subc_32(carry, 0, 0);
-	if (carry)
-	{
+    subc_cc_64(res[1], val1[1], val2[1]);
+    subc_cc_64(res[2], val1[2], val2[2]);
+    subc_cc_64(res[3], val1[3], val2[3]);
+    u32 carry;
+    subc_32(carry, 0, 0);
+    if (carry)
+    { 
 		add_cc_64(res[0], res[0], P_0);
 		addc_cc_64(res[1], res[1], P_123);
 		addc_cc_64(res[2], res[2], P_123);
 		addc_64(res[3], res[3], P_123);
-	}
+    }
 }
 
 __device__ __forceinline__ void AddModP(u64* res, u64* val1, u64* val2)
@@ -113,7 +111,7 @@ __device__ __forceinline__ void AddModP(u64* res, u64* val1, u64* val2)
 	add_cc_64(tmp[0], val1[0], val2[0]);
 	addc_cc_64(tmp[1], val1[1], val2[1]);
 	addc_cc_64(tmp[2], val1[2], val2[2]);
-	addc_cc_64(tmp[3], val1[3], val2[3]);
+	addc_cc_64(tmp[3], val1[3], val2[3]);	
 	addc_32(carry, 0, 0);
 	Copy_u64_x4(res, tmp);
 
@@ -228,10 +226,10 @@ __device__ __forceinline__ void mul_256_by_64(u64* res, u64* val256, u64 val64)
 	addc_32(rs[9], k[8], 0);
 }
 
-__device__ __forceinline__ void MulModP(u64* res, u64* val1, u64* val2)
+__device__ __forceinline__ void MulModP(u64 *res, u64 *val1, u64 *val2)
 {
 	u64 buff[8], tmp[5], tmp2[2], tmp3;
-	//calc 512 bits
+//calc 512 bits
 	mul_256_by_64(tmp, val1, val2[1]);
 	mul_256_by_64(buff, val1, val2[0]);
 	add_320_to_256(buff + 1, tmp);
@@ -239,14 +237,14 @@ __device__ __forceinline__ void MulModP(u64* res, u64* val1, u64* val2)
 	add_320_to_256(buff + 2, tmp);
 	mul_256_by_64(tmp, val1, val2[3]);
 	add_320_to_256(buff + 3, tmp);
-	//fast mod P
+//fast mod P
 	mul_256_by_P0inv((u32*)tmp, (u32*)(buff + 4));
 	add_cc_64(buff[0], buff[0], tmp[0]);
 	addc_cc_64(buff[1], buff[1], tmp[1]);
 	addc_cc_64(buff[2], buff[2], tmp[2]);
 	addc_cc_64(buff[3], buff[3], tmp[3]);
 	addc_64(tmp[4], tmp[4], 0ull);
-	//see mul_256_by_P0inv for details
+//see mul_256_by_P0inv for details
 	u32* t32 = (u32*)tmp;
 	u32* a32 = (u32*)tmp2;
 	u32* k = (u32*)&tmp3;
@@ -303,7 +301,7 @@ __device__ __forceinline__ void SqrModP(u64* res, u64* val)
 	u64 mar[28];
 	u32* b32 = (u32*)buff;
 	u32* m32 = (u32*)mar;
-	//calc 512 bits
+//calc 512 bits
 	mul_wide_32(mar[0], a[1], a[0]); //ab
 	mul_wide_32(mar[1], a[2], a[0]); //ac
 	mul_wide_32(mar[2], a[3], a[0]); //ad
@@ -332,7 +330,7 @@ __device__ __forceinline__ void SqrModP(u64* res, u64* val)
 	mul_wide_32(mar[25], a[6], a[5]); //fg
 	mul_wide_32(mar[26], a[7], a[5]); //fh
 	mul_wide_32(mar[27], a[7], a[6]); //gh
-	//a
+//a
 	mul_wide_32(buff[0], a[0], a[0]); //aa
 	add_cc_32(b32[1], b32[1], m32[0]);
 	addc_cc_32(b32[2], m32[1], m32[2]);
@@ -343,7 +341,7 @@ __device__ __forceinline__ void SqrModP(u64* res, u64* val)
 	addc_cc_32(b32[7], m32[11], m32[12]);
 	addc_cc_32(b32[8], m32[13], 0);
 	b32[9] = 0;
-	//b+	 
+//b+	 
 	mul_wide_32(mm, a[1], a[1]); //bb
 	add_320_to_256s(b32 + 1, mar[0], mm, mar[7], mar[8], mar[9], mar[10], mar[11], mar[12]);
 	mul_wide_32(mm, a[2], a[2]); //cc
@@ -358,14 +356,14 @@ __device__ __forceinline__ void SqrModP(u64* res, u64* val)
 	add_320_to_256s(b32 + 6, mar[5], mar[11], mar[16], mar[20], mar[23], mar[25], mm, mar[27]);
 	mul_wide_32(mm, a[7], a[7]); //hh
 	add_320_to_256s(b32 + 7, mar[6], mar[12], mar[17], mar[21], mar[24], mar[26], mar[27], mm);
-	//fast mod P
+//fast mod P
 	mul_256_by_P0inv((u32*)tmp, (u32*)(buff + 4));
 	add_cc_64(buff[0], buff[0], tmp[0]);
 	addc_cc_64(buff[1], buff[1], tmp[1]);
 	addc_cc_64(buff[2], buff[2], tmp[2]);
 	addc_cc_64(buff[3], buff[3], tmp[3]);
 	addc_64(tmp[4], tmp[4], 0ull);
-	//see mul_256_by_P0inv for details
+//see mul_256_by_P0inv for details
 	u32* t32 = (u32*)tmp;
 	u32* a32 = (u32*)tmp2;
 	u32* k = (u32*)&tmp3;
@@ -414,7 +412,7 @@ __device__ __forceinline__ void mul_288_by_i32(u32* res, u32* val288, int ival32
 	u32 val32 = abs(ival32);
 	u64 tmp64[4];
 	u32* tmp = (u32*)tmp64;
-	u64* r32 = (u64*)res;
+	u64* r32 = (u64*)res; 
 	mul_wide_32(r32[0], val288[0], val32);
 	mul_wide_32(r32[1], val288[2], val32);
 	mul_wide_32(r32[2], val288[4], val32);
@@ -521,7 +519,7 @@ __device__ __forceinline__ void InvModP(u32* res)
 	__align__(8) u32 modp[9];
 	__align__(8) u32 val[9];
 	__align__(8) u32 a[9];
-	__align__(8) u32 tmp[4][9];
+	__align__(8) u32 tmp[4][9+1]; //+1 because we need alignment 64bit for tmp[>0]
 
 	((u64*)modp)[0] = P_0;
 	((u64*)modp)[1] = P_123;
@@ -615,7 +613,7 @@ __device__ __forceinline__ void InvModP(u32* res)
 		shiftR_288_by_30(res);
 		mul_P_by_32(a, ((tmp[2][0] + tmp[3][0]) * 0xD2253531) & 0x3FFFFFFF);
 		add_288(a, a, tmp[2]);
-		add_288(a, a, tmp[3]);
+		add_288(a, a, tmp[3]);	
 		shiftR_288_by_30(a);
 	}
 	mul_P_by_32(res, ((tmp[0][0] + tmp[1][0]) * 0xD2253531) & 0x3FFFFFFF);
@@ -623,10 +621,9 @@ __device__ __forceinline__ void InvModP(u32* res)
 	add_288(res, res, tmp[1]);
 	shiftR_288_by_30(res);
 	if ((int)modp[8] < 0)
-		neg_288(res);
+		neg_288(res);	
 	while ((int)res[8] < 0)
 		add_288_P(res);
 	while ((int)res[8] > 0)
 		sub_288_P(res);
 }
-
